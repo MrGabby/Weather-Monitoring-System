@@ -1,0 +1,163 @@
+#include <ESP8266WiFi.h>
+#include <DHT.h>
+#include <ThingSpeak.h>
+#include <Wire.h>
+#include <Adafruit_BMP085.h>
+Adafruit_BMP085 bmp;
+
+DHT dht(D5, DHT11);
+
+
+const int fled = D7;
+
+const int ledPin = D8;
+
+const int ldrPin = D4;
+
+const int rainPin = D0;
+
+const int rledPin = D3;
+
+
+
+WiFiClient client;
+
+long myChannelNumber = 1326641;
+const char myWriteAPIKey[] = "YSWY9WLVFAXT6SLY";
+
+void setup() {
+
+   pinMode(ledPin, OUTPUT);
+
+  pinMode(ldrPin, INPUT);
+
+    pinMode(rledPin, OUTPUT);
+
+  pinMode(rainPin, INPUT);
+
+  pinMode(fled, OUTPUT);
+  
+  
+  // put your setup code here, to run once:
+  Serial.begin(115200);
+
+   
+  
+  WiFi.begin("vivoY21L", "1234567890");
+  while(WiFi.status() != WL_CONNECTED)
+  {
+    delay(200);
+    Serial.print("..");
+  }
+  Serial.println();
+  Serial.println("NodeMCU is connected!");
+  Serial.println(WiFi.localIP());
+  dht.begin();
+   bmp.begin();
+  
+  ThingSpeak.begin(client);
+}
+
+
+
+void loop()
+{
+  // put your main code here, to run repeatedly:
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  
+  Serial.println("Temperature: " + (String) t);
+
+ if (t >= 26)
+ {
+    digitalWrite(fled, HIGH );
+
+    Serial.print("fan is ON");
+
+     Serial.println();
+
+ }
+    else
+ {
+  digitalWrite(fled, LOW);
+
+  Serial.print("fan is OFF");
+
+  Serial.println();
+  
+  }
+
+  Serial.println("Humidity: " + (String) h);
+   delay(500);
+  ThingSpeak.writeField(myChannelNumber, 1, t, myWriteAPIKey);
+
+   // delay(500);
+
+  ThingSpeak.writeField(myChannelNumber, 2, h, myWriteAPIKey);
+  //delay(500);
+
+  int ldrStatus = digitalRead(ldrPin);
+  
+  if(ldrStatus == 1)
+  {
+    digitalWrite(ledPin, HIGH);
+
+    Serial.print("Its dark,LED is ON:");
+
+     Serial.println(ldrStatus);
+     
+  }
+  else
+  {
+    digitalWrite(ledPin, LOW);
+
+    
+    Serial.print("Its Bright,LED is OFF:");
+
+    Serial.println(ldrStatus);
+
+ }
+  ThingSpeak.writeField(myChannelNumber, 3, ldrStatus, myWriteAPIKey);
+
+/////--------------------------------DHT end----------//
+
+//------------rain coded start-----//
+  int rain = digitalRead(D0);
+
+if(rain==0)
+{
+  Serial.println("Its Raining");
+  digitalWrite (rledPin , HIGH);
+  delay(500);
+}
+else if(rain==1)
+
+{
+  Serial.println("No Rain");
+  digitalWrite (rledPin , LOW);
+   delay(500);
+}
+
+  ThingSpeak.writeField(myChannelNumber, 4, rain , myWriteAPIKey);
+
+//-------------------rain code end--------//
+
+
+//-------------------BMP code start-------------//
+    float pressure = bmp.readSealevelPressure();
+    delay(500);
+
+  Serial.print("Pressure at sealevel (calculated) = ");
+  Serial.print(pressure);
+  Serial.println(" Pa");
+
+   
+  Serial.println();
+  delay(500);
+
+ThingSpeak.writeField(myChannelNumber, 5,pressure, myWriteAPIKey);
+
+
+///-------------BMP end --------//
+ 
+}
